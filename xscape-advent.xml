@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+
+<board type="Arduino Duemilanove" name="app">
+	<info>
+		Application for the Xscape advent timer
+	</info>
+	
+	<devices>
+		<device name="IR Receiver" type="IR Receiver">
+			<setting id="pin" value="11"/>
+		</device>
+	</devices>
+
+	<modules>
+		<module>Task</module>
+	</modules>
+
+	<custom_code>
+		<file>custom-code.cpp</file>
+	</custom_code>
+	<adl protocol="simple"></adl>
+</board>
