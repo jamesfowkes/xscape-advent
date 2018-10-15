@@ -25,8 +25,12 @@
 static const uint8_t LOG_BUFFER_SIZE = 64;
 
 
+static const char s_application_name[] PROGMEM = "APP";
+
 
 static char const * const s_adl_log_module_prefixes[] PROGMEM = {
+
+    s_application_name,
 
 
 };

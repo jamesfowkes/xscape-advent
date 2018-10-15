@@ -7,6 +7,8 @@ enum adl_devices
 
 	ADL_DEVICE_IR_RECEIVER,
 
+	ADL_DEVICE_NEOPIXELS,
+
 };
 typedef enum adl_devices ADL_DEVICES;
 
@@ -16,7 +18,7 @@ enum adl_parameters
 };
 typedef enum adl_parameters ADL_PARAMETERS;
 
-static const int ADL_DEVICE_COUNT = 1;
+static const int ADL_DEVICE_COUNT = 2;
 static const int ADL_PARAM_COUNT = 0;
 
 static const int ADL_BUFFER_SIZE = 64;

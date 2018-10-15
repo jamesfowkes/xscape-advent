@@ -9,6 +9,10 @@
 		<device name="IR Receiver" type="IR Receiver">
 			<setting id="pin" value="11"/>
 		</device>
+		<device name="NeoPixels" type="Adafruit NeoPixel">
+			<setting id="pin" value="3"/>
+			<setting id="npixels" value="25"/>
+		</device>
 	</devices>
 
 	<modules>
@@ -17,6 +21,12 @@
 
 	<custom_code>
 		<file>custom-code.cpp</file>
+		<file>settings.h</file>
 	</custom_code>
+
+	<logging>
+		<log_module>APPLICATION</log_module>
+	</logging>
+
 	<adl protocol="simple"></adl>
 </board>

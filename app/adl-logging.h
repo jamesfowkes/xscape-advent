@@ -4,6 +4,8 @@
 typedef enum adl_log_modules
 {
 
+	LOG_APP,
+
 } ADL_LOG_MODULES;
 
 void adl_logging_setup(Print& log_printer);

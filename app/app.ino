@@ -2,7 +2,7 @@
 
 /*
 app
-Created on 2018-10-14
+Created on 2018-10-15
 By the Arduino Description Language tool.
  
 
@@ -26,9 +26,13 @@ By the Arduino Description Language tool.
 
 #include <IRremote.h>
 
+#include <Adafruit_NeoPixel.h>
 
 
 
+
+
+#include "adafruit-neopixel-adl.h"
 
 #include "IR-receiver.h"
 
@@ -38,11 +42,18 @@ By the Arduino Description Language tool.
 
 static IR_Receiver s_ir_receiver = IR_Receiver(11);
 
+static AdafruitNeoPixelADL s_neopixels = AdafruitNeoPixelADL(3, 25);
+
 
 static DeviceBase * s_devices[] = 
 {
 	
 	&s_ir_receiver
+	
+    ,
+	
+	
+	&s_neopixels
 	
 	
 };
@@ -64,10 +75,17 @@ int handle_device1_command(char const * const command, char * reply)
 	return s_ir_receiver.command_handler(command, reply);
 }
 
+int handle_device2_command(char const * const command, char * reply)
+{
+	return s_neopixels.command_handler(command, reply);
+}
+
 
 static COMMAND_HANDLER adl_devices[] = {
 	
 	handle_device1_command,
+	
+	handle_device2_command,
 	
 };
 
@@ -116,6 +134,11 @@ void setup()
 	// Setup for IR Receiver
 	s_ir_receiver.setup();
 	// END IR Receiver setup
+
+	
+	// Setup for NeoPixels
+	s_neopixels.setup();
+	// END NeoPixels setup
 
 	
 
