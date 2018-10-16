@@ -32,9 +32,9 @@ By the Arduino Description Language tool.
 
 
 
-#include "IR-receiver.h"
-
 #include "adafruit-neopixel-adl.h"
+
+#include "IR-receiver.h"
 
 
 

@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<board type="Arduino Duemilanove" name="app">
+<board type="Arduino Nano" name="app">
 	<info>
 		Application for the Xscape advent timer
 	</info>

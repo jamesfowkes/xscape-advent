@@ -36,9 +36,10 @@ static const unsigned long PAUSE_RESUME_CODE = 0xFFC23D;	// '>' button
 static const unsigned long RESET_CODE = 0xFF22DD;			// '<' button
 
 static const uint16_t NORMAL_COUNTDOWN_DAY_LENGTH = 144;
-static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 1;
+static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 7;
 
 static const uint8_t DAYS_IN_ADVENT = 25;
+static const uint8_t TESTING_DAYS = 5;
 
 /* Local Variables */
 
@@ -46,7 +47,6 @@ static eMode s_mode = eMODE_IDLE;
 static uint8_t s_day_timer = 0;
 static uint8_t s_advent_day = 1;
 static bool s_testing = false;
-
 static IR_Receiver * s_pIR;
 static AdafruitNeoPixelADL * s_pNeoPixels;
 
@@ -65,7 +65,7 @@ static void set_leds(uint8_t n, uint8_t r, uint8_t g, uint8_t b)
 
 static void set_leds_finished()
 {
-	set_leds(DAYS_IN_ADVENT, LED_FINISH_COLOUR);
+	set_leds(s_testing ? TESTING_DAYS : DAYS_IN_ADVENT, LED_FINISH_COLOUR);
 }
 
 
@@ -88,7 +88,7 @@ static void set_mode(eMode new_mode)
 
 static bool is_last_day()
 {
-	return s_advent_day == 25;
+	return s_advent_day == (s_testing ? TESTING_DAYS : DAYS_IN_ADVENT);
 }
 
 static uint8_t get_timer_reload()
@@ -113,7 +113,7 @@ static void run_normal_day()
 		{
 			logln(LOG_APP, "End of day %u", s_advent_day);
 			
-			if (s_advent_day<DAYS_IN_ADVENT)
+			if (!is_last_day())
 			{
 				set_advent_day(s_advent_day+1);
 			}
@@ -130,13 +130,13 @@ static void run_last_day()
 		logln(LOG_APP, "%d seconds remaining...", s_day_timer);
 		s_day_timer--;
 
-		if (s_day_timer & 1)
+		if (s_day_timer > 60)
 		{
 			set_leds_normal(s_advent_day);
 		}
 		else
 		{
-			set_leds_normal(s_advent_day-1);
+			set_leds_normal(s_day_timer & 1 ? s_advent_day : s_advent_day-1);
 		}
 
 		if (s_day_timer == 0)
