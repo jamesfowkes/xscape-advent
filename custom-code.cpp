@@ -36,7 +36,7 @@ static const unsigned long PAUSE_RESUME_CODE = 0xFFC23D;	// '>' button
 static const unsigned long RESET_CODE = 0xFF22DD;			// '<' button
 
 static const uint16_t NORMAL_COUNTDOWN_DAY_LENGTH = 144;
-static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 5;
+static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 1;
 
 static const uint8_t DAYS_IN_ADVENT = 25;
 
@@ -44,7 +44,7 @@ static const uint8_t DAYS_IN_ADVENT = 25;
 
 static eMode s_mode = eMODE_IDLE;
 static uint8_t s_day_timer = 0;
-static uint8_t s_advent_day = 0;
+static uint8_t s_advent_day = 1;
 static bool s_testing = false;
 
 static IR_Receiver * s_pIR;
@@ -52,22 +52,32 @@ static AdafruitNeoPixelADL * s_pNeoPixels;
 
 /* Private Functions */
 
-static void set_leds(uint8_t days_remaining)
+static void set_leds(uint8_t n, uint8_t r, uint8_t g, uint8_t b)
 {
-	uint8_t leds_to_light = DAYS_IN_ADVENT - days_remaining + 1;
 	uint8_t i;
 	s_pNeoPixels->pixels().clear();
-	for (i=0; i<leds_to_light; i++)
+	for (i=0; i<n; i++)
 	{
-		s_pNeoPixels->pixels().setPixelColor(i, LED_COLOUR);
+		s_pNeoPixels->pixels().setPixelColor(i, r, g, b);
 	}
 	s_pNeoPixels->pixels().show();
+}
+
+static void set_leds_finished()
+{
+	set_leds(DAYS_IN_ADVENT, LED_FINISH_COLOUR);
+}
+
+
+static void set_leds_normal(uint8_t days)
+{
+	set_leds(days, LED_RED_COLOUR);
 }
 
 static void set_advent_day(uint16_t day)
 {
 	s_advent_day = day;
-	set_leds(s_advent_day);
+	set_leds_normal(s_advent_day);
 }
 
 static void set_mode(eMode new_mode)
@@ -76,11 +86,25 @@ static void set_mode(eMode new_mode)
 	s_mode = new_mode;
 }
 
-static void countdown_task_fn(ADLTask& thisTask, void * pTaskData)
+static bool is_last_day()
 {
-	(void)thisTask;
-	(void)pTaskData;
+	return s_advent_day == 25;
+}
 
+static uint8_t get_timer_reload()
+{
+	if (is_last_day())
+	{
+		return s_testing ? 10 : NORMAL_COUNTDOWN_DAY_LENGTH;
+	}
+	else
+	{
+		return s_testing ? TEST_COUNTDOWN_DAY_LENGTH : NORMAL_COUNTDOWN_DAY_LENGTH;
+	}
+}
+
+static void run_normal_day()
+{
 	if (s_day_timer > 0)
 	{
 		s_day_timer--;
@@ -88,27 +112,62 @@ static void countdown_task_fn(ADLTask& thisTask, void * pTaskData)
 		if (s_day_timer == 0)
 		{
 			logln(LOG_APP, "End of day %u", s_advent_day);
-			s_day_timer = s_testing ? TEST_COUNTDOWN_DAY_LENGTH : NORMAL_COUNTDOWN_DAY_LENGTH;
-			if (s_advent_day)
+			
+			if (s_advent_day<DAYS_IN_ADVENT)
 			{
-				set_advent_day(s_advent_day-1);
+				set_advent_day(s_advent_day+1);
 			}
-
-			set_leds(s_advent_day);
-
-			if (s_advent_day == 0)
-			{
-				logln(LOG_APP, "Timer expired!");
-				set_mode(eMODE_FINISHED);
-			}
+			s_day_timer = get_timer_reload();
+			set_leds_normal(s_advent_day);
 		}
 	}
+}
+
+static void run_last_day()
+{
+	if (s_day_timer > 0)
+	{
+		logln(LOG_APP, "%d seconds remaining...", s_day_timer);
+		s_day_timer--;
+
+		if (s_day_timer & 1)
+		{
+			set_leds_normal(s_advent_day);
+		}
+		else
+		{
+			set_leds_normal(s_advent_day-1);
+		}
+
+		if (s_day_timer == 0)
+		{
+			logln(LOG_APP, "Game finished!");
+			set_leds_finished();
+			set_mode(eMODE_FINISHED);
+		}
+	}
+}
+
+static void countdown_task_fn(ADLTask& thisTask, void * pTaskData)
+{
+	(void)thisTask;
+	(void)pTaskData;
+
+	if (is_last_day())
+	{
+		run_last_day();
+	}
+	else
+	{
+		run_normal_day();
+	}
+	
 }
 static ADLTask s_countdown_task(1000, countdown_task_fn, NULL);
 
 static void start_countdown(bool testing)
 {
-	set_advent_day(DAYS_IN_ADVENT);
+	set_advent_day(1);
 	s_countdown_task.reset();
 	s_testing = testing;
 	s_day_timer = s_testing ? TEST_COUNTDOWN_DAY_LENGTH : NORMAL_COUNTDOWN_DAY_LENGTH;
@@ -176,7 +235,7 @@ static void check_ir_remote()
 			if (countdown_can_reset(s_mode))
 			{
 				logln(LOG_APP, "Countdown reset");
-				set_advent_day(DAYS_IN_ADVENT);
+				set_advent_day(1);
 				set_mode(eMODE_IDLE);
 			}
 			break;
