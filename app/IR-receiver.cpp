@@ -1,10 +1,6 @@
-#include <Arduino.h>
-
 #include <Wire.h>
 #include <IRremote.h>
 
-#include "parameter.h"
-#include "device.h"
 #include "adl.h"
 
 #include "IR-receiver.h"

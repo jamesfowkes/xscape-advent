@@ -3,11 +3,11 @@
 
 enum adl_devices
 {
-	ADL_DEVICE_BOARD,
+    ADL_DEVICE_BOARD,
 
-	ADL_DEVICE_IR_RECEIVER,
+    ADL_DEVICE_IR_RECEIVER,
 
-	ADL_DEVICE_NEOPIXELS,
+    ADL_DEVICE_NEOPIXELS,
 
 };
 typedef enum adl_devices ADL_DEVICES;
@@ -17,6 +17,8 @@ enum adl_parameters
 
 };
 typedef enum adl_parameters ADL_PARAMETERS;
+
+typedef uint16_t ADL_NV_ADDR;
 
 static const int ADL_DEVICE_COUNT = 2;
 static const int ADL_PARAM_COUNT = 0;

@@ -3,8 +3,6 @@
 #include <IRremote.h>
 #include <Adafruit_NeoPixel.h>
 
-#include "device.h"
-#include "parameter.h"
 #include "adl.h"
 
 #include "adl-oneshot-timer.h"
@@ -35,8 +33,10 @@ static const unsigned long START_TEST_CODE = 0xFF52AD;		// '#' button
 static const unsigned long PAUSE_RESUME_CODE = 0xFFC23D;	// '>' button
 static const unsigned long RESET_CODE = 0xFF22DD;			// '<' button
 
-static const uint16_t NORMAL_COUNTDOWN_DAY_LENGTH = 144;
-static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 7;
+// Number of 500ms intervals
+static const uint16_t NORMAL_COUNTDOWN_DAY_LENGTH = 295; // 295 * 500ms = 147.5s
+static const uint16_t TEST_COUNTDOWN_DAY_LENGTH = 14; // 14 * 500ms = 7s
+static const uint16_t LAST_DAY_COUNTDOWN_LENGTH = 120; // 120 * 500ms = 60s
 
 static const uint8_t DAYS_IN_ADVENT = 25;
 static const uint8_t TESTING_DAYS = 5;
@@ -82,7 +82,7 @@ static void set_advent_day(uint16_t day)
 
 static void set_mode(eMode new_mode)
 {
-	logln(LOG_APP, "New mode %d", (uint8_t)new_mode);
+	adl_logln(LOG_APP, "New mode %d", (uint8_t)new_mode);
 	s_mode = new_mode;
 }
 
@@ -95,7 +95,7 @@ static uint8_t get_timer_reload()
 {
 	if (is_last_day())
 	{
-		return s_testing ? 10 : NORMAL_COUNTDOWN_DAY_LENGTH;
+		return s_testing ? 20 : LAST_DAY_COUNTDOWN_LENGTH;
 	}
 	else
 	{
@@ -111,7 +111,7 @@ static void run_normal_day()
 
 		if (s_day_timer == 0)
 		{
-			logln(LOG_APP, "End of day %u", s_advent_day);
+			adl_logln(LOG_APP, "End of day %u", s_advent_day);
 			
 			if (!is_last_day())
 			{
@@ -127,7 +127,7 @@ static void run_last_day()
 {
 	if (s_day_timer > 0)
 	{
-		logln(LOG_APP, "%d seconds remaining...", s_day_timer);
+		adl_logln(LOG_APP, "%d seconds remaining...", s_day_timer);
 		s_day_timer--;
 
 		if (s_day_timer > 60)
@@ -141,7 +141,7 @@ static void run_last_day()
 
 		if (s_day_timer == 0)
 		{
-			logln(LOG_APP, "Game finished!");
+			adl_logln(LOG_APP, "Game finished!");
 			set_leds_finished();
 			set_mode(eMODE_FINISHED);
 		}
@@ -163,7 +163,7 @@ static void countdown_task_fn(ADLTask& thisTask, void * pTaskData)
 	}
 	
 }
-static ADLTask s_countdown_task(1000, countdown_task_fn, NULL);
+static ADLTask s_countdown_task(500, countdown_task_fn, NULL);
 
 static void start_countdown(bool testing)
 {
@@ -199,14 +199,14 @@ static void check_ir_remote()
 	if (s_pIR->get_code(code))
 	{
 
-		logln(LOG_APP, "Got code %lx", code);
+		adl_logln(LOG_APP, "Got code %lx", code);
 
 		switch(code)
 		{
 		case START_NORMAL_CODE:
 			if (countdown_can_start(s_mode))
 			{
-				logln(LOG_APP, "Starting countdown (normal)");
+				adl_logln(LOG_APP, "Starting countdown (normal)");
 				start_countdown(false);
 				set_mode(eMODE_RUNNING);
 			}
@@ -214,7 +214,7 @@ static void check_ir_remote()
 		case START_TEST_CODE:
 			if (countdown_can_start(s_mode))
 			{
-				logln(LOG_APP, "Starting countdown (test)");
+				adl_logln(LOG_APP, "Starting countdown (test)");
 				start_countdown(true);
 				set_mode(eMODE_RUNNING);
 			}
@@ -222,25 +222,25 @@ static void check_ir_remote()
 		case PAUSE_RESUME_CODE:
 			if (countdown_can_pause(s_mode))
 			{
-				logln(LOG_APP, "Countdown paused");
+				adl_logln(LOG_APP, "Countdown paused");
 				set_mode(eMODE_PAUSED);
 			}
 			else if (countdown_can_resume(s_mode))
 			{
-				logln(LOG_APP, "Countdown resuming");
+				adl_logln(LOG_APP, "Countdown resuming");
 				set_mode(eMODE_RUNNING);
 			}
 			break;
 		case RESET_CODE:
 			if (countdown_can_reset(s_mode))
 			{
-				logln(LOG_APP, "Countdown reset");
+				adl_logln(LOG_APP, "Countdown reset");
 				set_advent_day(1);
 				set_mode(eMODE_IDLE);
 			}
 			break;
 		default:
-			logln(LOG_APP, "Code not recognised");
+			adl_logln(LOG_APP, "Code not recognised");
 			break;
 		}
 	}
@@ -273,11 +273,11 @@ void adl_custom_setup(DeviceBase * pdevices[], int ndevices, ParameterBase * ppa
 	s_pIR = (IR_Receiver*)pdevices[0];
 	s_pNeoPixels = (AdafruitNeoPixelADL*)pdevices[1];
 
-	logln(LOG_APP, "Recognised codes:");
-	logln(LOG_APP, "Start normal: %lx", START_NORMAL_CODE);
-	logln(LOG_APP, "Start test: %lx", START_TEST_CODE);
-	logln(LOG_APP, "Pause/resume: %lx", PAUSE_RESUME_CODE);
-	logln(LOG_APP, "Reset: %lx", RESET_CODE);
+	adl_logln(LOG_APP, "Recognised codes:");
+	adl_logln(LOG_APP, "Start normal: %lx", START_NORMAL_CODE);
+	adl_logln(LOG_APP, "Start test: %lx", START_TEST_CODE);
+	adl_logln(LOG_APP, "Pause/resume: %lx", PAUSE_RESUME_CODE);
+	adl_logln(LOG_APP, "Reset: %lx", RESET_CODE);
 
 	play_intro();
 }
