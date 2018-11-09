@@ -3,6 +3,8 @@
 #include "adl.h"
 
 
+    #include "adl-util-limited-range-int.h"
+
 
 int adl_board_read_progmem(char * const dst, char const * const src)
 {

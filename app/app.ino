@@ -16,7 +16,7 @@
 
 /*
 app
-Created on 2018-11-08
+Created on 2018-11-09
 By the Arduino Description Language tool.
  
 
@@ -39,6 +39,8 @@ By the Arduino Description Language tool.
 
 
 
+    #include "adl-util-limited-range-int.h"
+
 
 
 #include "IR-receiver.h"
@@ -46,6 +48,8 @@ By the Arduino Description Language tool.
 #include "adafruit-neopixel-adl.h"
 
 
+
+#include "integer-param.h"
 
 
 
@@ -68,9 +72,14 @@ static DeviceBase * s_devices[] =
 };
 
 
+static IntegerParam s_ir_command = IntegerParam(0, 0, 4, false, false);
+
 
 static ParameterBase * s_params[] = 
 {
+    
+    &s_ir_command
+    
     
 };
 
@@ -109,8 +118,15 @@ DeviceBase& adl_get_device(DEVICE_ADDRESS address)
 }
 
 
+int handle_param1_command(char const * const command, char * reply)
+{
+    return s_ir_command.command_handler(command, reply);
+}
+
 
 static COMMAND_HANDLER adl_params[] = {
+    
+    handle_param1_command,
     
 };
 
@@ -152,6 +168,10 @@ void setup()
     // END NeoPixels setup
     
 
+    
+    // Setup for IR Command
+    s_ir_command.setup();
+    // END IR Command setup
     
 
     adl_custom_setup(s_devices, ADL_DEVICE_COUNT, s_params, ADL_PARAM_COUNT);

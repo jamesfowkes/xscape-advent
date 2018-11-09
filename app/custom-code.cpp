@@ -14,6 +14,8 @@
 #include "IR-receiver.h"
 #include "adafruit-neopixel-adl.h"
 
+#include "integer-param.h"
+
 #include "settings.h"
 
 /* Defines, enums, typedefs */
@@ -25,6 +27,14 @@ typedef enum _mode
 	eMODE_PAUSED,
 	eMODE_FINISHED
 } eMode;
+
+typedef enum _modeChangeRequest
+{
+	eMODE_CHANGE_REQUEST_START_NORMAL,
+	eMODE_CHANGE_REQUEST_START_TEST,
+	eMODE_CHANGE_REQUEST_PAUSE_RESUME,
+	eMODE_CHANGE_REQUEST_RESET
+} eModeChangeRequest;
 
 /* Constants */
 
@@ -44,7 +54,8 @@ static const uint8_t TESTING_DAYS = 5;
 /* Local Variables */
 
 static eMode s_mode = eMODE_IDLE;
-static uint8_t s_day_timer = 0;
+static uint16_t s_day_timer = 0;
+static uint16_t s_lastday_countdown = 0;
 static uint8_t s_advent_day = 1;
 static bool s_testing = false;
 static IR_Receiver * s_pIR;
@@ -52,15 +63,39 @@ static AdafruitNeoPixelADL * s_pNeoPixels;
 
 /* Private Functions */
 
+static uint8_t map_led_to_px_idx(uint8_t n)
+{
+	if (n < 5)
+	{
+		return n;
+	}
+	else if (n < 10)
+	{
+		return 5 + (9-n);
+	}
+	else if (n < 15)
+	{
+		return n;
+	}
+	else if (n < 20)
+	{
+		return 15 + (19-n);
+	}
+	else
+	{
+		return n;
+	}
+}
+
 static void set_leds(uint8_t n, uint8_t r, uint8_t g, uint8_t b)
 {
 	uint8_t i;
-	s_pNeoPixels->pixels().clear();
+	s_pNeoPixels->clear();
 	for (i=0; i<n; i++)
 	{
-		s_pNeoPixels->pixels().setPixelColor(i, r, g, b);
+		s_pNeoPixels->setPixelColor(map_led_to_px_idx(i), r, g, b);
 	}
-	s_pNeoPixels->pixels().show();
+	s_pNeoPixels->show();
 }
 
 static void set_leds_finished()
@@ -72,6 +107,11 @@ static void set_leds_finished()
 static void set_leds_normal(uint8_t days)
 {
 	set_leds(days, LED_RED_COLOUR);
+}
+
+static void set_leds_idle()
+{
+	set_leds(1, LED_IDLE_COLOUR);
 }
 
 static void set_advent_day(uint16_t day)
@@ -91,7 +131,7 @@ static bool is_last_day()
 	return s_advent_day == (s_testing ? TESTING_DAYS : DAYS_IN_ADVENT);
 }
 
-static uint8_t get_timer_reload()
+static uint16_t get_timer_reload()
 {
 	if (is_last_day())
 	{
@@ -127,24 +167,22 @@ static void run_last_day()
 {
 	if (s_day_timer > 0)
 	{
-		adl_logln(LOG_APP, "%d seconds remaining...", s_day_timer);
+		if ((s_day_timer & 1) == 0)
+		{
+			s_lastday_countdown--;
+			adl_logln(LOG_APP, "%d seconds remaining...", s_lastday_countdown);
+
+			set_leds_normal(s_lastday_countdown & 1 ? s_advent_day : s_advent_day-1);
+			
+			if (s_lastday_countdown == 0)
+			{
+				adl_logln(LOG_APP, "Game finished!");
+				set_leds_finished();
+				set_mode(eMODE_FINISHED);
+			}
+		}
+
 		s_day_timer--;
-
-		if (s_day_timer > 60)
-		{
-			set_leds_normal(s_advent_day);
-		}
-		else
-		{
-			set_leds_normal(s_day_timer & 1 ? s_advent_day : s_advent_day-1);
-		}
-
-		if (s_day_timer == 0)
-		{
-			adl_logln(LOG_APP, "Game finished!");
-			set_leds_finished();
-			set_mode(eMODE_FINISHED);
-		}
 	}
 }
 
@@ -170,6 +208,7 @@ static void start_countdown(bool testing)
 	set_advent_day(1);
 	s_countdown_task.reset();
 	s_testing = testing;
+	s_lastday_countdown = 60;
 	s_day_timer = s_testing ? TEST_COUNTDOWN_DAY_LENGTH : NORMAL_COUNTDOWN_DAY_LENGTH;
 }
 
@@ -193,6 +232,87 @@ static bool countdown_can_resume(eMode mode)
 	return (mode == eMODE_PAUSED);
 }
 
+static void handle_mode_change_request(eModeChangeRequest modeChangeRequest)
+{
+	switch(modeChangeRequest)
+	{
+	case eMODE_CHANGE_REQUEST_START_NORMAL:
+		if (countdown_can_start(s_mode))
+		{
+			adl_logln(LOG_APP, "Starting countdown (normal)");
+			start_countdown(false);
+			set_mode(eMODE_RUNNING);
+		}
+		break;
+	case eMODE_CHANGE_REQUEST_START_TEST:
+		if (countdown_can_start(s_mode))
+		{
+			adl_logln(LOG_APP, "Starting countdown (test)");
+			start_countdown(true);
+			set_mode(eMODE_RUNNING);
+		}
+		break;
+	case eMODE_CHANGE_REQUEST_PAUSE_RESUME:
+		if (countdown_can_pause(s_mode))
+		{
+			adl_logln(LOG_APP, "Countdown paused");
+			set_mode(eMODE_PAUSED);
+		}
+		else if (countdown_can_resume(s_mode))
+		{
+			adl_logln(LOG_APP, "Countdown resuming");
+			set_mode(eMODE_RUNNING);
+		}
+		break;
+	case eMODE_CHANGE_REQUEST_RESET:
+		if (countdown_can_reset(s_mode))
+		{
+			adl_logln(LOG_APP, "Countdown reset");
+			set_leds_idle();
+			set_mode(eMODE_IDLE);
+		}
+		break;
+	default:
+		adl_logln(LOG_APP, "Code not recognised");
+		break;
+	}
+}
+
+static bool check_override_param(int32_t param)
+{
+	bool override = true;
+
+	if (param > 0)
+	{
+		adl_logln(LOG_APP, "Got override %d", param);
+	}
+
+	switch(param)
+	{
+	case 0:
+		override = false;
+		break;
+	case 1:
+		handle_mode_change_request(eMODE_CHANGE_REQUEST_START_NORMAL);
+		break;
+	case 2:
+		handle_mode_change_request(eMODE_CHANGE_REQUEST_START_TEST);
+		break;
+	case 3:
+		handle_mode_change_request(eMODE_CHANGE_REQUEST_PAUSE_RESUME);
+		break;
+	case 4:
+		handle_mode_change_request(eMODE_CHANGE_REQUEST_RESET);
+		break;
+	default:
+		adl_logln(LOG_APP, "Override not recognised");
+		override = false;
+		break;
+	}
+
+	return override;
+}
+
 static void check_ir_remote()
 {
 	unsigned long code;
@@ -204,40 +324,16 @@ static void check_ir_remote()
 		switch(code)
 		{
 		case START_NORMAL_CODE:
-			if (countdown_can_start(s_mode))
-			{
-				adl_logln(LOG_APP, "Starting countdown (normal)");
-				start_countdown(false);
-				set_mode(eMODE_RUNNING);
-			}
+			handle_mode_change_request(eMODE_CHANGE_REQUEST_START_NORMAL);
 			break;
 		case START_TEST_CODE:
-			if (countdown_can_start(s_mode))
-			{
-				adl_logln(LOG_APP, "Starting countdown (test)");
-				start_countdown(true);
-				set_mode(eMODE_RUNNING);
-			}
+			handle_mode_change_request(eMODE_CHANGE_REQUEST_START_TEST);
 			break;
 		case PAUSE_RESUME_CODE:
-			if (countdown_can_pause(s_mode))
-			{
-				adl_logln(LOG_APP, "Countdown paused");
-				set_mode(eMODE_PAUSED);
-			}
-			else if (countdown_can_resume(s_mode))
-			{
-				adl_logln(LOG_APP, "Countdown resuming");
-				set_mode(eMODE_RUNNING);
-			}
+			handle_mode_change_request(eMODE_CHANGE_REQUEST_PAUSE_RESUME);
 			break;
 		case RESET_CODE:
-			if (countdown_can_reset(s_mode))
-			{
-				adl_logln(LOG_APP, "Countdown reset");
-				set_advent_day(1);
-				set_mode(eMODE_IDLE);
-			}
+			handle_mode_change_request(eMODE_CHANGE_REQUEST_RESET);
 			break;
 		default:
 			adl_logln(LOG_APP, "Code not recognised");
@@ -251,15 +347,15 @@ static void play_intro()
 	uint8_t i;
 	for(i=0;i<DAYS_IN_ADVENT;i++)
 	{
-		s_pNeoPixels->pixels().setPixelColor(i, 32, 32, 32);
-		s_pNeoPixels->pixels().show();
+		s_pNeoPixels->setPixelColor(map_led_to_px_idx(i), 32, 32, 32);
+		s_pNeoPixels->show();
 		delay(50);
 	}
 
 	for(i=0;i<DAYS_IN_ADVENT;i++)
 	{
-		s_pNeoPixels->pixels().setPixelColor(DAYS_IN_ADVENT-i-1, 0, 0, 0);
-		s_pNeoPixels->pixels().show();
+		s_pNeoPixels->setPixelColor(map_led_to_px_idx(DAYS_IN_ADVENT-i-1), 0, 0, 0);
+		s_pNeoPixels->show();
 		delay(50);
 	}
 }
@@ -280,6 +376,8 @@ void adl_custom_setup(DeviceBase * pdevices[], int ndevices, ParameterBase * ppa
 	adl_logln(LOG_APP, "Reset: %lx", RESET_CODE);
 
 	play_intro();
+
+	set_leds_idle();
 }
 
 void adl_custom_loop(DeviceBase * pdevices[], int ndevices, ParameterBase * pparams[], int nparams)
@@ -287,6 +385,12 @@ void adl_custom_loop(DeviceBase * pdevices[], int ndevices, ParameterBase * ppar
 	(void)pdevices; (void)ndevices; (void)pparams; (void)nparams;
 
 	check_ir_remote();
+
+	IntegerParam* pOverrideParam = (IntegerParam*)(pparams[0]);
+	if (check_override_param(pOverrideParam->get()))
+	{
+		pOverrideParam->set(0);
+	}
 
 	if (s_mode == eMODE_RUNNING)
 	{

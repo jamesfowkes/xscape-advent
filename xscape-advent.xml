@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<board type="Arduino Nano" name="app">
+<board type="Arduino Duemilanove" name="app">
 	<info>
 		Application for the Xscape advent timer
 	</info>
@@ -15,6 +15,14 @@
 		</device>
 	</devices>
 
+	<parameters>
+		<parameter name="IR Command" type="Integer">
+            <setting id="clip" value="false"/>
+            <setting id="min" value="0"/>
+            <setting id="max" value="4"/>
+		</parameter>
+	</parameters>
+
 	<modules>
 		<module>Task</module>
 	</modules>
@@ -28,5 +36,5 @@
 		<log_module>APPLICATION</log_module>
 	</logging>
 
-	<adl protocol="simple"></adl>
+	<adl protocol="url"></adl>
 </board>
